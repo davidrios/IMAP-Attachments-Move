@@ -55,7 +55,9 @@ DESTINATIONS = {
 
 def add_saved_notice(message, destination_name, bkp_identifier):
     content_type = message['Content-Type'].lower()
-    content_encoding = message['Content-Transfer-Encoding'].lower()
+    content_encoding = message['Content-Transfer-Encoding']
+    if content_encoding is not None:
+        content_encoding = content_encoding.lower()
 
     if 'text/plain' in content_type:
         notice = '++++ attachments saved to {}, identifier: [{}] ++++\n\n'.format(destination_name, bkp_identifier)
@@ -69,6 +71,8 @@ def add_saved_notice(message, destination_name, bkp_identifier):
         message.set_payload(base64.b64encode(notice + message_text).decode('ascii'))
     elif 'quoted-printable' in content_encoding:
         message.set_payload(quopri.encodestring(notice.encode('ascii')).decode('ascii') + message.get_payload())
+    elif content_encoding is None:
+        message.set_payload(notice + message.get_payload())
     else:
         raise NotImplementedError
 
