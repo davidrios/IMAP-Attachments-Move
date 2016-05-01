@@ -109,6 +109,8 @@ def process(config_ini, limit=None):
             html.set_payload('<p>++++ attachments saved to {}, identifier: [{}] ++++</p>\n'.format(destination_name, bkp_identifier) + html.get_payload())
         elif 'text/plain' in content_type:
             textmsg.set_payload('++++ attachments saved to {}, identifier: [{}] ++++\n\n'.format(destination_name, bkp_identifier) + textmsg.get_payload())
+        elif 'text/html' in content_type:
+            textmsg.set_payload('<p>++++ attachments saved to {}, identifier: [{}] ++++</p>\n'.format(destination_name, bkp_identifier) + textmsg.get_payload())
         else:
             raise NotImplementedError
 
