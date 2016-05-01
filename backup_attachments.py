@@ -2,6 +2,7 @@
 import base64
 import imaplib
 import logging
+import quopri
 import re
 import uuid
 from configparser import SafeConfigParser
@@ -54,6 +55,7 @@ DESTINATIONS = {
 
 def add_saved_notice(message, destination_name, bkp_identifier):
     content_type = message['Content-Type'].lower()
+    content_encoding = message['Content-Transfer-Encoding'].lower()
 
     if 'text/plain' in content_type:
         notice = '++++ attachments saved to {}, identifier: [{}] ++++\n\n'.format(destination_name, bkp_identifier)
@@ -62,11 +64,13 @@ def add_saved_notice(message, destination_name, bkp_identifier):
     else:
         raise NotImplementedError
 
-    if 'base64' in message['Content-Transfer-Encoding'].lower():
+    if 'base64' in content_encoding:
         message_text = base64.b64decode(message.get_payload())
         message.set_payload(base64.b64encode(notice + message_text).decode('ascii'))
+    elif 'quoted-printable' in content_encoding:
+        message.set_payload(quopri.encodestring(notice.encode('ascii')).decode('ascii') + message.get_payload())
     else:
-        message.set_payload(notice + message.get_payload())
+        raise NotImplementedError
 
 
 def process(config_ini, limit=None):
