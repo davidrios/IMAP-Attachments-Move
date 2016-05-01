@@ -8,6 +8,7 @@ import uuid
 from configparser import SafeConfigParser
 from datetime import datetime, timezone
 from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from email.parser import BytesParser
 
 log = logging.getLogger(__name__)
@@ -16,12 +17,13 @@ IMAP_CLS = {True: imaplib.IMAP4_SSL, False: imaplib.IMAP4}
 
 
 class IMAPDestinationItem(object):
-    def __init__(self, connection, mailbox, identifier):
+    def __init__(self, connection, mailbox, identifier, body_text):
         self._connection = connection
         self._mailbox = mailbox
 
         message = MIMEMultipart()
         message['Subject'] = 'attachments backup [{}]'.format(identifier)
+        message.attach(MIMEText(body_text, 'plain', 'utf8'))
         self._message = message
 
     def save(self):
@@ -41,8 +43,8 @@ class IMAPDestination(object):
         connection.login(config.get('login'), config.get('password'))
         self._connection = connection
 
-    def new(self, identifier):
-        return IMAPDestinationItem(self._connection, self._mailbox, identifier)
+    def new(self, identifier, body_text):
+        return IMAPDestinationItem(self._connection, self._mailbox, identifier, body_text)
 
     def finalize(self):
         self._connection.logout()
@@ -76,6 +78,18 @@ def add_saved_notice(message, destination_name, bkp_identifier):
             message.set_payload(quopri.encodestring(notice.encode('ascii')).decode('ascii') + message.get_payload())
         else:
             raise NotImplementedError
+
+
+RELEVANT_HEADERS = (
+    'date',
+    'message-id',
+    'subject',
+    'from',
+    'to',
+    'cc'
+)
+def format_relevant_headers(message):
+    return '\n'.join(': '.join(i) for i in message.items() if i[0].lower() in RELEVANT_HEADERS)
 
 
 def process(config_ini, limit=None):
@@ -141,7 +155,7 @@ def process(config_ini, limit=None):
 
         log.debug('backup identifier: %s', bkp_identifier)
 
-        destitem = destination.new(bkp_identifier)
+        destitem = destination.new(bkp_identifier, format_relevant_headers(message))
 
         attachments = payload[1:]
         if not len(attachments):
