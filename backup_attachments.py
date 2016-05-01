@@ -71,11 +71,13 @@ def add_saved_notice(message, destination_name, bkp_identifier):
     else:
         content_encoding = content_encoding.lower()
 
-        if 'base64' in content_encoding:
+        if 'base64' == content_encoding:
             message_text = base64.b64decode(message.get_payload())
             message.set_payload(base64.b64encode(notice.encode('ascii') + message_text).decode('ascii'))
-        elif 'quoted-printable' in content_encoding:
+        elif 'quoted-printable' == content_encoding:
             message.set_payload(quopri.encodestring(notice.encode('ascii')).decode('ascii') + message.get_payload())
+        elif '7bit' == content_encoding:
+            message.set_payload(notice + message.get_payload())
         else:
             raise NotImplementedError
 
