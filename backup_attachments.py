@@ -96,15 +96,19 @@ def process(config_ini, limit=None):
 
         payload = message.get_payload()
         textmsg = payload[0]
-        if 'multipart/alternative' not in textmsg['Content-Type'].lower():
-            raise NotImplementedError
 
         bkp_identifier = str(uuid.uuid4())
-        log.debug('backup identifier: %s', bkp_identifier)
 
-        text, html = textmsg.get_payload()
-        text.set_payload('++++ attachments saved to {}, identifier: [{}] ++++\n\n'.format(destination_name, bkp_identifier) + text.get_payload())
-        html.set_payload('<p>++++ attachments saved to {}, identifier: [{}] ++++</p>\n'.format(destination_name, bkp_identifier) + html.get_payload())
+        if 'multipart/alternative' in textmsg['Content-Type'].lower():
+            text, html = textmsg.get_payload()
+            text.set_payload('++++ attachments saved to {}, identifier: [{}] ++++\n\n'.format(destination_name, bkp_identifier) + text.get_payload())
+            html.set_payload('<p>++++ attachments saved to {}, identifier: [{}] ++++</p>\n'.format(destination_name, bkp_identifier) + html.get_payload())
+        elif 'text/plain' in textmsg['Content-Type'].lower():
+            textmsg.set_payload('++++ attachments saved to {}, identifier: [{}] ++++\n\n'.format(destination_name, bkp_identifier) + textmsg.get_payload())
+        else:
+            raise NotImplementedError
+
+        log.debug('backup identifier: %s', bkp_identifier)
 
         destitem = destination.new(bkp_identifier)
 
