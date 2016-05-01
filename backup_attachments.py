@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import base64
 import imaplib
 import logging
 import re
@@ -49,6 +50,23 @@ class IMAPDestination(object):
 DESTINATIONS = {
     'imap': IMAPDestination
 }
+
+
+def add_saved_notice(message, destination_name, bkp_identifier):
+    content_type = message['Content-Type'].lower()
+
+    if 'text/plain' in content_type:
+        notice = '++++ attachments saved to {}, identifier: [{}] ++++\n\n'.format(destination_name, bkp_identifier)
+    elif 'text/html' in content_type:
+        notice = '<p>++++ attachments saved to {}, identifier: [{}] ++++</p>\n'.format(destination_name, bkp_identifier)
+    else:
+        raise NotImplementedError
+
+    if 'base64' in message['Content-Transfer-Encoding'].lower():
+        message_text = base64.b64decode(message.get_payload())
+        message.set_payload(base64.b64encode(notice + message_text).decode('ascii'))
+    else:
+        message.set_payload(notice + message.get_payload())
 
 
 def process(config_ini, limit=None):
@@ -105,12 +123,10 @@ def process(config_ini, limit=None):
             continue
         elif 'multipart/alternative' in content_type:
             text, html = textmsg.get_payload()
-            text.set_payload('++++ attachments saved to {}, identifier: [{}] ++++\n\n'.format(destination_name, bkp_identifier) + text.get_payload())
-            html.set_payload('<p>++++ attachments saved to {}, identifier: [{}] ++++</p>\n'.format(destination_name, bkp_identifier) + html.get_payload())
-        elif 'text/plain' in content_type:
-            textmsg.set_payload('++++ attachments saved to {}, identifier: [{}] ++++\n\n'.format(destination_name, bkp_identifier) + textmsg.get_payload())
-        elif 'text/html' in content_type:
-            textmsg.set_payload('<p>++++ attachments saved to {}, identifier: [{}] ++++</p>\n'.format(destination_name, bkp_identifier) + textmsg.get_payload())
+            add_saved_notice(text, destination_name, bkp_identifier)
+            add_saved_notice(html, destination_name, bkp_identifier)
+        elif 'text/plain' in content_type or 'text/html' in content_type:
+            add_saved_notice(textmsg, destination_name, bkp_identifier)
         else:
             raise NotImplementedError
 
