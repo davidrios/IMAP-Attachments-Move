@@ -99,11 +99,15 @@ def process(config_ini, limit=None):
 
         bkp_identifier = str(uuid.uuid4())
 
-        if 'multipart/alternative' in textmsg['Content-Type'].lower():
+        content_type = textmsg['Content-Type'].lower()
+        if 'multipart/related' in content_type:
+            log.warn('multipart/related not supported, skipping...')
+            continue
+        elif 'multipart/alternative' in content_type:
             text, html = textmsg.get_payload()
             text.set_payload('++++ attachments saved to {}, identifier: [{}] ++++\n\n'.format(destination_name, bkp_identifier) + text.get_payload())
             html.set_payload('<p>++++ attachments saved to {}, identifier: [{}] ++++</p>\n'.format(destination_name, bkp_identifier) + html.get_payload())
-        elif 'text/plain' in textmsg['Content-Type'].lower():
+        elif 'text/plain' in content_type:
             textmsg.set_payload('++++ attachments saved to {}, identifier: [{}] ++++\n\n'.format(destination_name, bkp_identifier) + textmsg.get_payload())
         else:
             raise NotImplementedError
