@@ -74,7 +74,9 @@ def process(config_ini, limit=None):
         res = connection.uid('search', None, 'LARGER', str(config.getint('source', 'email_min_size')))
 
     message_uids = res[1][0].split()
-    total_messages = len(message_uids)
+    total_messages = total_process = len(message_uids)
+    if limit is not None:
+        total_process = min([total_messages, limit])
 
     parser = BytesParser()
     processed_mailbox = config.get('source', 'processed_mailbox')
@@ -82,17 +84,16 @@ def process(config_ini, limit=None):
 
     log.info('found %s messages to process', total_messages)
     for idx, uid in enumerate(message_uids):
-        if limit is not None and idx >= limit:
+        if idx >= total_process:
             break
 
-        log.info('processing %s/%s...', idx + 1, total_messages if limit is None else limit)
+        log.info('processing %s/%s...', idx + 1, total_process)
 
         log.debug('downloading and parsing message...')
         res = connection.uid('fetch', uid, '(FLAGS BODY.PEEK[])')
         message = parser.parsebytes(res[1][0][1])
         flags = re.findall(r'FLAGS (\(.*?\))', res[1][0][0].decode('utf8'))[0]
 
-        message['subject'] = message['subject'] + ' [backup]'
         payload = message.get_payload()
         textmsg = payload[0]
         if 'multipart/alternative' not in textmsg['Content-Type'].lower():
